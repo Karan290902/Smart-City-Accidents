@@ -48,24 +48,6 @@ if uploaded_file is not None:
     fig, ax = plt.subplots(figsize=(8,5))
     sns.heatmap(df.corr(), annot=True, cmap='coolwarm', ax=ax)
     st.pyplot(fig)
-    st.caption("#Insight: Correlation heatmap shows how strongly each feature affects accident severity.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if 'Weather' in df.columns and 'Claim_Severity' in df.columns:
-            fig, ax = plt.subplots()
-            sns.countplot(x='Weather', hue='Claim_Severity', data=df, ax=ax)
-            plt.xticks(rotation=30)
-            st.pyplot(fig)
-            st.caption("#Insight: Rainy or foggy conditions show higher accident severity levels.")
-
-    with col2:
-        if 'Road_Condition' in df.columns and 'Claim_Amount' in df.columns:
-            fig, ax = plt.subplots()
-            sns.boxplot(x='Road_Condition', y='Claim_Amount', data=df, ax=ax)
-            plt.xticks(rotation=30)
-            st.pyplot(fig)
-            st.caption("#Insight: Damaged roads correlate with higher claim amounts.")
 
     # =====================
     # 🧠 Train-Test Split
@@ -90,6 +72,7 @@ if uploaded_file is not None:
 
     results = {}
     trained_models = {}
+
     for name, model in models.items():
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
@@ -97,47 +80,34 @@ if uploaded_file is not None:
         results[name] = acc
         trained_models[name] = model
 
-        st.subheader(f"📈 {name}")
-        st.write("Accuracy:", round(acc, 3))
-        st.text(classification_report(y_test, y_pred))
-        fig, ax = plt.subplots()
-        sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', ax=ax)
-        st.pyplot(fig)
-        st.caption(f"#Insight: {name} model confusion matrix shows its prediction power and misclassification rate.")
-
-        if name != "Logistic Regression":
-            feat_imp = pd.Series(model.feature_importances_, index=X.columns).sort_values(ascending=False)
-            fig, ax = plt.subplots()
-            feat_imp.head(10).plot(kind='bar', ax=ax)
-            plt.title(f"Top 10 Important Features - {name}")
-            st.pyplot(fig)
-            st.caption("#Insight: Displays which features most influence accident claim severity.")
-
-    # =====================
-    # 🧩 Model Comparison
-    # =====================
-    st.markdown("### 🥇 Model Accuracy Comparison")
     comparison_df = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy'])
+    st.subheader("🥇 Model Accuracy Comparison")
     st.bar_chart(comparison_df)
-    best_model_name = comparison_df['Accuracy'].idxmax()
+
+    best_model_name = max(results, key=results.get)
     best_model = trained_models[best_model_name]
-    st.success(f"🏆 Best Model: {best_model_name} with Accuracy = {results[best_model_name]:.3f}")
+    st.success(f"✅ Best Model: **{best_model_name}** with Accuracy: **{results[best_model_name]:.2f}**")
 
     # =====================
-    # ✋ User Input for Prediction
+    # 🔢 User Input Prediction
     # =====================
-    st.markdown("### ✋ Predict Accident Severity Using Custom Input")
+    st.markdown("### 🧮 Predict Accident Severity Using Input Data")
 
-    user_input = {}
-    st.info("Enter values for each feature below:")
-    for col in X.columns:
-        user_input[col] = st.number_input(f"Enter {col}", value=float(df[col].mean()) if np.issubdtype(df[col].dtype, np.number) else 0.0)
+    with st.form("prediction_form"):
+        st.write("Enter input values for prediction:")
 
-    if st.button("🔍 Predict Severity"):
-        input_df = pd.DataFrame([user_input])
+        input_data = {}
+        for col in X.columns:
+            value = st.number_input(f"{col}", value=float(df[col].mean()))
+            input_data[col] = value
+
+        submitted = st.form_submit_button("Predict Severity")
+
+    if submitted:
+        input_df = pd.DataFrame([input_data])
         input_scaled = scaler.transform(input_df)
         prediction = best_model.predict(input_scaled)
-        st.success(f"🎯 Predicted Accident Severity: **{prediction[0]}**")
+        st.success(f"🚨 Predicted Claim Severity: **{int(prediction[0])}**")
 
 else:
     st.info("⬆️ Please upload your dataset to start the analysis.")
