@@ -119,3 +119,24 @@ if uploaded_file is not None:
 
 else:
     st.info("⬆️ Please upload your dataset to start the analysis.")
+
+
+import pickle
+import streamlit as st
+import pandas as pd
+
+model = pickle.load(open("rf_model.pkl", "rb"))
+
+st.title("Accident Severity Prediction")
+
+speed = st.number_input("Speed (km/h)")
+weather = st.selectbox("Weather", ["Sunny", "Rainy", "Foggy"])
+time_of_day = st.selectbox("Time of Day", ["Morning", "Afternoon", "Evening", "Night"])
+
+if st.button("Predict"):
+    data = pd.DataFrame([[speed, weather, time_of_day]],
+                        columns=["Speed", "Weather", "TimeOfDay"])
+    pred = model.predict(data)
+    st.success(f"Predicted Severity: {pred[0]}")
+
+
