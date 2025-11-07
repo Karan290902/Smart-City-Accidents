@@ -52,18 +52,20 @@ if uploaded_file is not None:
 
     col1, col2 = st.columns(2)
     with col1:
-        fig, ax = plt.subplots()
-        sns.countplot(x='Weather', hue='Claim_Severity', data=df, ax=ax)
-        plt.xticks(rotation=30)
-        st.pyplot(fig)
-        st.caption("#Insight: Rainy or foggy conditions show higher accident severity levels.")
+        if 'Weather' in df.columns and 'Claim_Severity' in df.columns:
+            fig, ax = plt.subplots()
+            sns.countplot(x='Weather', hue='Claim_Severity', data=df, ax=ax)
+            plt.xticks(rotation=30)
+            st.pyplot(fig)
+            st.caption("#Insight: Rainy or foggy conditions show higher accident severity levels.")
 
     with col2:
-        fig, ax = plt.subplots()
-        sns.boxplot(x='Road_Condition', y='Claim_Amount', data=df, ax=ax)
-        plt.xticks(rotation=30)
-        st.pyplot(fig)
-        st.caption("#Insight: Damaged roads correlate with higher claim amounts.")
+        if 'Road_Condition' in df.columns and 'Claim_Amount' in df.columns:
+            fig, ax = plt.subplots()
+            sns.boxplot(x='Road_Condition', y='Claim_Amount', data=df, ax=ax)
+            plt.xticks(rotation=30)
+            st.pyplot(fig)
+            st.caption("#Insight: Damaged roads correlate with higher claim amounts.")
 
     # =====================
     # 🧠 Train-Test Split
@@ -87,11 +89,13 @@ if uploaded_file is not None:
     }
 
     results = {}
+    trained_models = {}
     for name, model in models.items():
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
         acc = accuracy_score(y_test, y_pred)
         results[name] = acc
+        trained_models[name] = model
 
         st.subheader(f"📈 {name}")
         st.write("Accuracy:", round(acc, 3))
@@ -115,28 +119,25 @@ if uploaded_file is not None:
     st.markdown("### 🥇 Model Accuracy Comparison")
     comparison_df = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy'])
     st.bar_chart(comparison_df)
-    st.caption("#Insight: Helps identify the best-performing model for accident prediction.")
+    best_model_name = comparison_df['Accuracy'].idxmax()
+    best_model = trained_models[best_model_name]
+    st.success(f"🏆 Best Model: {best_model_name} with Accuracy = {results[best_model_name]:.3f}")
+
+    # =====================
+    # ✋ User Input for Prediction
+    # =====================
+    st.markdown("### ✋ Predict Accident Severity Using Custom Input")
+
+    user_input = {}
+    st.info("Enter values for each feature below:")
+    for col in X.columns:
+        user_input[col] = st.number_input(f"Enter {col}", value=float(df[col].mean()) if np.issubdtype(df[col].dtype, np.number) else 0.0)
+
+    if st.button("🔍 Predict Severity"):
+        input_df = pd.DataFrame([user_input])
+        input_scaled = scaler.transform(input_df)
+        prediction = best_model.predict(input_scaled)
+        st.success(f"🎯 Predicted Accident Severity: **{prediction[0]}**")
 
 else:
     st.info("⬆️ Please upload your dataset to start the analysis.")
-
-
-import pickle
-import streamlit as st
-import pandas as pd
-
-model = pickle.load(open("rf_model.pkl", "rb"))
-
-st.title("Accident Severity Prediction")
-
-speed = st.number_input("Speed (km/h)")
-weather = st.selectbox("Weather", ["Sunny", "Rainy", "Foggy"])
-time_of_day = st.selectbox("Time of Day", ["Morning", "Afternoon", "Evening", "Night"])
-
-if st.button("Predict"):
-    data = pd.DataFrame([[speed, weather, time_of_day]],
-                        columns=["Speed", "Weather", "TimeOfDay"])
-    pred = model.predict(data)
-    st.success(f"Predicted Severity: {pred[0]}")
-
-
